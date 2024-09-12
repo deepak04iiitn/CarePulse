@@ -50,7 +50,7 @@ export const getUser = async (userId : string) => {
 export const registerPatient = async ( {identificationDocument , ...patient} : RegisterUserParams ) => {
 
     try {
-      
+
         let file;
 
         if(identificationDocument)
@@ -83,4 +83,26 @@ export const registerPatient = async ( {identificationDocument , ...patient} : R
         console.log(error);
     }
 }
+
+
+
+export const getPatient = async (userId : string) => {
+  try {
+      
+      const patients = await databases.listDocuments(             // will return a list of query which matches the query
+          DATABASE_ID!,
+          PATIENT_COLLECTION_ID!,
+          [
+              Query.equal('userId' , userId)                    
+          ]
+      )
+
+      return parseStringify(patients.documents[0]);
+
+  } catch (error) {
+      console.log(error);
+  }
+}
+
+
 
