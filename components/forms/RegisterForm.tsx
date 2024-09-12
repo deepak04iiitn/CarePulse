@@ -8,12 +8,12 @@ import { Form, FormControl } from "@/components/ui/form"
 import CustomFormField from "../CustomFormField"
 import SubmitButton from "../SubmitButton"
 import { useState } from "react"
-import { UserFormValidation } from "@/lib/validation"
+import { PatientFormValidation, UserFormValidation } from "@/lib/validation"
 import { useRouter } from "next/navigation"
-import { createUser } from "@/lib/actions/patient.actions"
+import { createUser, registerPatient } from "@/lib/actions/patient.actions"
 import { FormFieldType } from "./PatientForm"
 import { RadioGroup, RadioGroupItem } from "../ui/radio-group"
-import { Doctors, GenderOptions, IdentificationTypes } from "@/constants"
+import { Doctors, GenderOptions, IdentificationTypes, PatientFormDefaultValues } from "@/constants"
 import { Label } from "../ui/label"
 import { SelectItem } from "../ui/select"
 import Image from "next/image"
@@ -27,9 +27,10 @@ const RegisterForm = ({ user } : {user : User }) => {
   const router = useRouter();
 
   // 1. Define your form.
-  const form = useForm<z.infer<typeof UserFormValidation>>({
-    resolver: zodResolver(UserFormValidation),
+  const form = useForm<z.infer<typeof PatientFormValidation>>({
+    resolver: zodResolver(PatientFormValidation),
     defaultValues: {
+      ...PatientFormDefaultValues,
       name: "",
       email: "",
       phone: "",
@@ -39,23 +40,45 @@ const RegisterForm = ({ user } : {user : User }) => {
  
   // 2. Define a submit handler.
   // Do something with the form values.
-  async function onSubmit({ name , email , phone }: z.infer<typeof UserFormValidation>) {
+  async function onSubmit(values : z.infer<typeof PatientFormValidation>) {
 
     setIsLoading(true);
 
+    let formData;
+
+    if(values.identificationDocument && values.identificationDocument.length > 0)
+    {
+        // blob is a special version of file which a browser can read
+        const blobFile = new Blob([values.identificationDocument[0]] , {
+            type : values.identificationDocument[0].type,                     // sets the MIME type of the Blob to match the type of the original file (e.g., image/jpeg, application/pdf).
+        })
+
+        formData = new FormData();                   // initializes a new FormData object. This object is used to compile a set of key/value pairs representing form fields and their values, which can then be easily sent using methods like fetch
+        formData.append('blobFile' , blobFile);      // adds the created Blob object to the FormData under the key 'blobFile'.
+        formData.append('fileName' , values.identificationDocument[0].name)          // adds the original file name to the FormData under the key 'fileName'.
+    }
+
     try {
 
-      const userData  = { name , email , phone };
+        const patientData = {
+            ...values,
+            userId : user.$id,
+            birthDate : new Date(values.birthDate),
+            identificationDocument : formData,
+            // name : values.name,          // i dont want to type all the fields like this , so we can spread the values and modify only thode actually change
+            // email : values.email
+        }
 
-      const user = await createUser(userData);              // we are accepting name, email and phone from the user and passing it to createUser
+        // @ts-ignore
+        const patient = await registerPatient(patientData);
 
-      console.log(user)
-
-      if(user) router.push(`/patients/${user.$id}/register`)
+        if(patient) router.push(`/patients/${user.$id}/new-appointment`);
 
     } catch (error) {
       console.log(error);
     }
+
+    setIsLoading(false);
 
   }
 
